@@ -1,6 +1,6 @@
-.env
-.env.*
+__init__.py
 !.env.example
 __pycache__/
 *.py[cod]
 staticfiles/
+media/

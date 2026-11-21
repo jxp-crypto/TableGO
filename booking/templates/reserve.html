@@ -17,12 +17,21 @@
 
   <div class="panel reservation-layout">
     <aside class="reservation-media">
-      <div class="ph reservation-image" role="img" aria-label="{{ rest.name }} restaurant" style="background-image:url('{% static 'booking/img/'|add:rest.slug|add:'.jpg' %}')">
+      <div class="ph reservation-image" role="img" aria-label="{{ rest.name }} restaurant" style="background-image:url('{% if rest.image %}{{ rest.image.url }}{% else %}{% static rest.fallback_image_path %}{% endif %}')">
         <div class="cap">
           <b>{{ rest.name }}</b>
           <span>{{ rest.location|default:"Main Branch" }}</span>
           <a href="{% url 'restaurants' %}">Change restaurant</a>
         </div>
+        {% if rest.latitude and rest.longitude %}
+          <div class="restaurant-map-preview">
+            <iframe title="Map showing {{ rest.name }}" loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              src="https://www.google.com/maps?q={{ rest.latitude }},{{ rest.longitude }}&amp;output=embed"></iframe>
+            <a class="text-link" target="_blank" rel="noopener noreferrer"
+              href="https://www.google.com/maps/dir/?api=1&amp;destination={{ rest.latitude }},{{ rest.longitude }}">Get directions</a>
+          </div>
+        {% endif %}
       </div>
     </aside>
     <div class="reservation-content">
@@ -41,12 +50,26 @@
             value="{{ sel.date|date:'Y-m-d' }}" required>
         </label>
 
-        <label>Time
+        <label>Arrival time
           <select name="time">
             {% for s in slots %}
               <option {% if s == sel.time %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
           </select>
+        </label>
+
+        <label>Reservation duration
+          <select name="duration">
+            {% for choice in duration_choices %}
+              <option value="{{ choice.value }}" {% if choice.value == sel.duration %}selected{% endif %}>{{ choice.label }}</option>
+            {% endfor %}
+            <option value="custom" {% if duration_selector == "custom" %}selected{% endif %}>Custom</option>
+          </select>
+        </label>
+
+        <label>Custom duration (minutes, in 30-minute increments)
+          <input type="number" name="custom_duration" min="30" max="480" step="30"
+            value="{{ sel.duration }}">
         </label>
 
         <label>Number of Guests
@@ -72,17 +95,21 @@
 
     {% elif step == 2 %}
       <h3>Table Selection</h3>
-      <p class="mu">Choose an available table. {{ sel.date|date:"M j, Y" }} · {{ sel.time }} · {{ sel.guests }} guest{{ sel.guests|pluralize }}</p>
+      <p class="mu">Choose an available table. {{ sel.date|date:"M j, Y" }} · {{ sel.time }}–{{ end_time|time:"H:i" }} ({{ sel.duration }} minutes) · {{ sel.guests }} guest{{ sel.guests|pluralize }}</p>
       <form method="get">
         <input type="hidden" name="customer_name" value="{{ sel.customer_name }}">
         <input type="hidden" name="date" value="{{ sel.date|date:'Y-m-d' }}">
         <input type="hidden" name="time" value="{{ sel.time }}">
+        <input type="hidden" name="duration" value="{{ duration_selector }}">
+        <input type="hidden" name="custom_duration" value="{{ sel.duration }}">
         <input type="hidden" name="guests" value="{{ sel.guests }}">
         <input type="hidden" name="occasion" value="{{ sel.occasion }}">
         <input type="hidden" name="phone" value="{{ sel.phone }}">
         <div class="legend">
           <span class="av">Available</span>
           <span class="tk">Reserved</span>
+          <span class="oc">Occupied</span>
+          <span class="na">Unavailable</span>
           <span class="sm2">Too small</span>
           <span class="sl">Selected</span>
         </div>
@@ -90,7 +117,7 @@
         {% include "_plan.html" with selectable=True %}
 
         <div class="between reservation-actions">
-          <a class="ghostd" href="?customer_name={{ sel.customer_name|urlencode }}&date={{ sel.date|date:'Y-m-d'|urlencode }}&time={{ sel.time|urlencode }}&guests={{ sel.guests }}&occasion={{ sel.occasion|urlencode }}&phone={{ sel.phone|urlencode }}">
+          <a class="ghostd" href="?customer_name={{ sel.customer_name|urlencode }}&date={{ sel.date|date:'Y-m-d'|urlencode }}&time={{ sel.time|urlencode }}&duration={{ duration_selector|urlencode }}&custom_duration={{ sel.duration }}&guests={{ sel.guests }}&occasion={{ sel.occasion|urlencode }}&phone={{ sel.phone|urlencode }}">
             Back
           </a>
           <button class="gold">Next</button>
@@ -108,31 +135,53 @@
         <dt>Date</dt>
         <dd>{{ sel.date|date:"M j, Y" }}</dd>
         <dt>Time</dt>
-        <dd>{{ sel.time }}</dd>
+        <dd>{{ sel.time }}–{{ end_time|time:"H:i" }} ({{ sel.duration }} minutes)</dd>
         <dt>Guests</dt>
         <dd>{{ sel.guests }}</dd>
+        <dt>Email</dt>
+        <dd>{% if verification %}{{ verification.email }}{% else %}To be verified{% endif %}</dd>
         <dt>Table</dt>
         <dd>{{ pick.name }} ({{ pick.seats }} seats)</dd>
         <dt>Occasion</dt>
         <dd>{{ sel.occasion|default:"None" }}</dd>
       </dl>
       <div class="between reservation-actions">
-        <a class="ghostd" href="?customer_name={{ sel.customer_name|urlencode }}&date={{ sel.date|date:'Y-m-d'|urlencode }}&time={{ sel.time|urlencode }}&guests={{ sel.guests }}&occasion={{ sel.occasion|urlencode }}&phone={{ sel.phone|urlencode }}">
+        <a class="ghostd" href="?customer_name={{ sel.customer_name|urlencode }}&date={{ sel.date|date:'Y-m-d'|urlencode }}&time={{ sel.time|urlencode }}&duration={{ duration_selector|urlencode }}&custom_duration={{ sel.duration }}&guests={{ sel.guests }}&occasion={{ sel.occasion|urlencode }}&phone={{ sel.phone|urlencode }}">
           Back
         </a>
         {% if user.is_authenticated %}
-          <form method="post">
-            {% csrf_token %}
-              <input type="hidden" name="confirm" value="1">
-              <input type="hidden" name="customer_name" value="{{ sel.customer_name }}">
-              <input type="hidden" name="date" value="{{ sel.date|date:'Y-m-d' }}">
-              <input type="hidden" name="time" value="{{ sel.time }}">
-              <input type="hidden" name="guests" value="{{ sel.guests }}">
-              <input type="hidden" name="occasion" value="{{ sel.occasion }}">
-              <input type="hidden" name="phone" value="{{ sel.phone }}">
-              <input type="hidden" name="table" value="{{ pick.pk }}">
-              <button class="gold">Confirm Reservation</button>
-          </form>
+          {% if verification %}
+            <div class="email-verification">
+              <p class="mu">We sent a six-digit code to <strong>{{ verification.email }}</strong>. It expires in 10 minutes.</p>
+              <form method="post" class="verification-form">
+                {% csrf_token %}
+                {% include "_reservation_payload.html" %}
+                <input type="hidden" name="email" value="{{ verification.email }}">
+                <input type="hidden" name="action" value="verify_code">
+                <label>Email verification code
+                  <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+                </label>
+                <button class="gold" type="submit">Verify and confirm reservation</button>
+              </form>
+              <form method="post" class="verification-resend">
+                {% csrf_token %}
+                {% include "_reservation_payload.html" %}
+                <input type="hidden" name="email" value="{{ verification.email }}">
+                <input type="hidden" name="action" value="resend_code">
+                <button class="ghostd" type="submit">Send a new code</button>
+              </form>
+            </div>
+          {% else %}
+            <form method="post" class="verification-form">
+              {% csrf_token %}
+              {% include "_reservation_payload.html" %}
+              <input type="hidden" name="action" value="send_code">
+              <label>Email address
+                <input type="email" name="email" value="{{ sel.email }}" autocomplete="email" maxlength="254" required>
+              </label>
+              <button class="gold" type="submit">Send verification code</button>
+            </form>
+          {% endif %}
         {% else %}
           <div class="auth-prompt">
             <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Log in</a>

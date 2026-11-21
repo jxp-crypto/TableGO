@@ -94,6 +94,7 @@
 	{% if user.is_authenticated %}
 		{% include "_modal.html" %}
 	{% endif %}
+	{% block scripts %}{% endblock %}
 </body>
 
 </html>

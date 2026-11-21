@@ -18,7 +18,7 @@
   <div class="cards">
     {% for r in rows %}
       <article class="rcard{% if not r.active %} inactive{% endif %}">
-        <div class="ph" style="background-image:url('{% static 'booking/img/'|add:r.slug|add:'.jpg' %}')">
+        <div class="ph" style="background-image:url('{% if r.image %}{{ r.image.url }}{% else %}{% static r.fallback_image_path %}{% endif %}')">
           <span class="badge {% if r.active %}on{% else %}off{% endif %}">{% if r.active %}Active{% else %}Inactive{% endif %}</span>
         </div>
         <div class="rb">
@@ -31,7 +31,7 @@
           </div>
           <div class="card-actions">
             <a class="dk sm" href="{% url 'd_tables' %}?r={{ r.slug }}"><i class="ri-layout-grid-line" aria-hidden="true"></i> Tables</a>
-            <a class="gold sm" href="{% url 'admin:booking_restaurant_change' r.pk %}"><i class="ri-edit-line" aria-hidden="true"></i> Edit</a>
+            <a class="gold sm" href="{% url 'd_restaurants' %}?edit={{ r.pk }}#add-restaurant"><i class="ri-edit-line" aria-hidden="true"></i> Edit</a>
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="action" value="toggle">
@@ -83,12 +83,32 @@
     <div class="bh">
       <div>
         <span class="bh-kicker">New location</span>
-        <h3><i class="ri-add-line" aria-hidden="true"></i> Add Restaurant</h3>
+        <h3><i class="ri-add-line" aria-hidden="true"></i> {% if form.instance.pk %}Edit Restaurant{% else %}Add Restaurant{% endif %}</h3>
       </div>
     </div>
-    <form method="post" class="restaurant-form">
+    <form method="post" class="restaurant-form" enctype="multipart/form-data" id="restaurant-form">
       {% csrf_token %}
+      {% if form.instance.pk %}<input type="hidden" name="edit" value="{{ form.instance.pk }}">{% endif %}
       {{ form.as_p }}
+      <div class="restaurant-image-picker">
+        <span class="bh-kicker">Cover preview</span>
+        <img data-image-preview alt="Restaurant cover preview"
+          src="{% if form.instance.image %}{{ form.instance.image.url }}{% else %}{% static form.instance.fallback_image_path %}{% endif %}">
+      </div>
+      <section class="restaurant-map-picker" aria-labelledby="restaurant-map-heading">
+        <h4 id="restaurant-map-heading">Pin the restaurant location</h4>
+        <label>Search a place
+          <input type="search" data-map-search placeholder="Search by address or place name">
+        </label>
+        <div class="restaurant-map-canvas" data-map-canvas role="application" aria-label="Google Map location picker"></div>
+        <p class="mu" data-map-status role="status">
+          {% if maps_api_key %}Search or click the map to set the marker; drag it to adjust.{% else %}Set GOOGLE_MAPS_API_KEY to enable the interactive picker. You can enter coordinates above manually.{% endif %}
+        </p>
+        <script src="{% static 'booking/restaurant-profile.js' %}"></script>
+        {% if maps_api_key %}
+          <script async src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key|urlencode }}&libraries=places&callback=initRestaurantMap"></script>
+        {% endif %}
+      </section>
       <button class="gold" type="submit"><i class="ri-add-line" aria-hidden="true"></i> Add restaurant</button>
     </form>
   </section>

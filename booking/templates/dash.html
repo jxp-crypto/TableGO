@@ -34,7 +34,7 @@
       <div class="cards">
         {% for r in rests %}
           <article class="rcard sm{% if r == cur %} selected{% endif %}">
-            <div class="ph" style="background-image:url('{% static 'booking/img/'|add:r.slug|add:'.jpg' %}')"></div>
+            <div class="ph" style="background-image:url('{% if r.image %}{{ r.image.url }}{% else %}{% static r.fallback_image_path %}{% endif %}')"></div>
             <div class="rb">
               <div class="restaurant-details">
                 <h3>{{ r.name }}</h3>
@@ -72,7 +72,7 @@
         {% for r in activity %}
           <li>
             <b>New reservation from {{ r.customer.username }}</b>
-            <small>{{ r.restaurant.name }} · {{ r.date|date:"M j" }} {{ r.time }}</small>
+            <small>{{ r.restaurant.name }} · {{ r.date|date:"M j" }} {{ r.time }}–{{ r.end_time|time:"H:i" }}</small>
             <em>{{ r.created|timesince }} ago</em>
           </li>
         {% empty %}

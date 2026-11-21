@@ -1,8 +1,9 @@
 {% extends "dash_base.html" %}
+{% load static %}
 
 {% block heading %}
 <h1>Table Management</h1>
-<p>Edit seats and positions on the floor plan</p>
+<p>Arrange and customize your restaurant floor plan</p>
 {% endblock %}
 
 {% block body %}
@@ -18,78 +19,384 @@
 </div>
 
 {% if cur %}
-  <div class="table-management">
-    <section class="box floor-plan-card">
-      <div class="bh">
-        <div>
-          <span class="bh-kicker">Current setup</span>
-          <h3>{{ cur.name }} · floor plan</h3>
-        </div>
+  <div class="floor-editor-app" data-restaurant="{{ cur.slug }}">
+    <!-- Top Bar matching the user's reference UI -->
+    <header class="editor-top-bar">
+      <div class="editor-top-left">
+        <span class="restaurant-badge">{{ cur.name }}</span>
       </div>
-      <div class="floor-plan-content">
-        {% include "_plan.html" with rest=cur %}
-      </div>
-    </section>
 
-    <section class="box table-list-card">
-      <div class="bh">
-        <div>
-          <span class="bh-kicker">Table details</span>
-          <h3>Edit tables</h3>
+      <div class="editor-orientation-group" role="group" aria-label="Floor orientation">
+        <button type="button" class="orient-btn {% if orientation == 'landscape' %}active{% endif %}" data-orient="landscape" title="Switch to landscape orientation">
+          <svg class="orient-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="12" rx="2"></rect>
+          </svg>
+          <span>Landscape</span>
+        </button>
+        <button type="button" class="orient-btn {% if orientation == 'portrait' %}active{% endif %}" data-orient="portrait" title="Switch to portrait orientation">
+          <svg class="orient-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="6" y="3" width="12" height="18" rx="2"></rect>
+          </svg>
+          <span>Portrait</span>
+        </button>
+      </div>
+
+      <div class="editor-top-actions">
+        <button type="button" class="editor-btn-cancel" data-editor-cancel>Cancel</button>
+        <button type="button" class="editor-btn-save" data-editor-save>Save</button>
+      </div>
+    </header>
+
+    <!-- Palette & Control Toolbar -->
+    <div class="editor-toolbar-bar">
+      <div class="palette-group">
+        <span class="palette-label"><i class="ri-add-circle-line" aria-hidden="true"></i> Add Table:</span>
+        <button type="button" class="palette-chip" data-add-table="square" data-seats="4" title="Add 4-seat square table">
+          <span class="chip-icon square-icon"></span> 4-Seat Square
+        </button>
+        <button type="button" class="palette-chip" data-add-table="square" data-seats="2" title="Add 2-seat square table">
+          <span class="chip-icon square-icon"></span> 2-Seat Square
+        </button>
+        <button type="button" class="palette-chip" data-add-table="rect" data-seats="6" title="Add 6-seat rectangular table">
+          <span class="chip-icon rect-icon"></span> 6-Seat Rect
+        </button>
+        <button type="button" class="palette-chip" data-add-table="round" data-seats="4" title="Add 4-seat round table">
+          <span class="chip-icon round-icon"></span> 4-Seat Round
+        </button>
+        <button type="button" class="palette-chip" data-add-table="round" data-seats="2" data-shape-variant="stool" title="Add bar stool / small round table">
+          <span class="chip-icon stool-icon"></span> Bar Stool
+        </button>
+        <button type="button" class="palette-chip" data-add-table="banquet" data-seats="8" title="Add 8-seat banquet table">
+          <span class="chip-icon banquet-icon"></span> Banquet
+        </button>
+      </div>
+
+      <div class="palette-divider"></div>
+
+      <div class="palette-group">
+        <span class="palette-label"><i class="ri-building-line" aria-hidden="true"></i> Add Structure:</span>
+        <button type="button" class="palette-chip chip-structure" data-add-element="window" title="Add a window">
+          <span class="chip-icon window-icon"></span> Window
+        </button>
+        <button type="button" class="palette-chip chip-structure" data-add-element="entrance" title="Add an entrance doorway">
+          <span class="chip-icon entrance-icon"></span> Entrance
+        </button>
+        <button type="button" class="palette-chip chip-structure" data-add-element="counter" title="Add a service / reception counter">
+          <span class="chip-icon counter-icon"></span> Counter
+        </button>
+        <button type="button" class="palette-chip chip-structure" data-add-element="bar" title="Add a bar counter structure">
+          <span class="chip-icon bar-icon"></span> Bar Counter
+        </button>
+        <button type="button" class="palette-chip chip-structure" data-add-element="wall" title="Add a wall">
+          <span class="chip-icon wall-icon"></span> Wall
+        </button>
+        <button type="button" class="palette-chip chip-structure" data-add-element="zone" title="Add a dining zone">
+          <span class="chip-icon zone-icon"></span> Zone
+        </button>
+      </div>
+
+      <div class="palette-divider"></div>
+
+      <div class="palette-group palette-tools">
+        <button class="dk sm" type="button" data-outline-toggle>Draw boundary</button>
+        <button class="gold sm" type="button" data-outline-save disabled>Save boundary</button>
+        <button class="ghostd sm" type="button" data-rotate-selected disabled style="display:none;">Rotate selected</button>
+        <label class="grid-snap-label" title="Snap moving items to 5% grid points">
+          <input type="checkbox" id="grid-snap-check" checked> Snap to grid
+        </label>
+      </div>
+    </div>
+
+    <!-- Status feedback banner -->
+    <div class="editor-status-banner">
+      <span class="status-indicator"></span>
+      <p class="mu" data-floor-status role="status">Click any table or structure to edit properties. Drag to reposition based on actual restaurant structure.</p>
+    </div>
+
+    <!-- Main Workspace: Canvas on left, Inspector sidebar on right -->
+    <div class="editor-workspace">
+      <!-- Canvas Column -->
+      <main class="canvas-column">
+        <div class="canvas-card">
+          <div class="canvas-scroll-container">
+            {% include "_plan.html" with rest=cur editable=True %}
+          </div>
         </div>
+
+        <div class="canvas-footer-legend">
+          <div class="legend floor-status-legend" aria-label="Table status legend">
+            <span class="av">Available</span>
+            <span class="tk">Reserved</span>
+            <span class="oc">Occupied</span>
+            <span class="na">Unavailable</span>
+          </div>
+          <span class="keyboard-hints"><kbd>Arrows</kbd> Move · <kbd>Shift+Arrows</kbd> Jump · <kbd>R</kbd> Rotate · <kbd>Ctrl+D</kbd> Duplicate · <kbd>Del</kbd> Delete</span>
+        </div>
+      </main>
+
+      <!-- Inspector Sidebar Column matching the user's reference UI -->
+      <aside class="inspector-sidebar" aria-label="Properties and actions inspector">
+        <!-- ALIGN Accordion -->
+        <div class="accordion-item" id="accordion-align">
+          <button type="button" class="accordion-header" data-accordion="align" aria-expanded="false">
+            <span class="accordion-title">ALIGN</span>
+            <i class="ri-arrow-right-s-line accordion-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="accordion-body align-controls-panel" style="display: none;">
+            <p class="panel-hint">Align selected item on the floor grid:</p>
+            <div class="align-btn-grid">
+              <button type="button" class="align-tool-btn" data-align="left" title="Align Left"><i class="ri-align-left" aria-hidden="true"></i> Left</button>
+              <button type="button" class="align-tool-btn" data-align="center" title="Align Center"><i class="ri-align-center" aria-hidden="true"></i> Center</button>
+              <button type="button" class="align-tool-btn" data-align="right" title="Align Right"><i class="ri-align-right" aria-hidden="true"></i> Right</button>
+              <button type="button" class="align-tool-btn" data-align="top" title="Align Top"><i class="ri-align-top" aria-hidden="true"></i> Top</button>
+              <button type="button" class="align-tool-btn" data-align="middle" title="Align Middle"><i class="ri-align-vertically" aria-hidden="true"></i> Middle</button>
+              <button type="button" class="align-tool-btn" data-align="bottom" title="Align Bottom"><i class="ri-align-bottom" aria-hidden="true"></i> Bottom</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROPERTIES Accordion -->
+        <div class="accordion-item open" id="accordion-properties">
+          <button type="button" class="accordion-header" data-accordion="properties" aria-expanded="true">
+            <span class="accordion-title">PROPERTIES</span>
+            <i class="ri-arrow-down-s-line accordion-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="accordion-body">
+            <div class="no-selection-msg" id="inspector-no-selection">
+              <i class="ri-cursor-line" aria-hidden="true"></i>
+              <p>Select a table or structure on the canvas to view and edit its properties.</p>
+            </div>
+
+            <form class="inspector-form" id="inspector-form" style="display: none;" onsubmit="return false;">
+              <!-- Name Field -->
+              <div class="prop-field">
+                <label for="prop-name">Name</label>
+                <input type="text" id="prop-name" name="name" maxlength="20" placeholder="e.g. 10 or Table 10">
+              </div>
+
+              <!-- Section Dropdown -->
+              <div class="prop-field">
+                <label for="prop-section">Section</label>
+                <div class="select-with-custom">
+                  <select id="prop-section" name="section">
+                    {% for sec in sections %}
+                      <option value="{{ sec }}">{{ sec }}</option>
+                    {% endfor %}
+                    <option value="__custom__">+ Add Custom Section...</option>
+                  </select>
+                  <input type="text" id="prop-section-custom" placeholder="New section name" style="display: none; margin-top: 6px;">
+                </div>
+              </div>
+
+              <!-- Minimum Seats and Maximum Seats -->
+              <div class="prop-row table-only-prop">
+                <div class="prop-field-half">
+                  <label for="prop-min-seats">Minimum Seats</label>
+                  <input type="number" id="prop-min-seats" name="min_seats" min="1" max="30" value="1">
+                </div>
+                <div class="prop-field-half">
+                  <label for="prop-max-seats">Maximum Seats</label>
+                  <input type="number" id="prop-max-seats" name="seats" min="1" max="30" value="4">
+                </div>
+              </div>
+
+              <!-- Width and Height with Aspect Ratio Lock -->
+              <div class="prop-row">
+                <div class="prop-field-half">
+                  <label for="prop-width">Width</label>
+                  <div class="dim-input-wrap">
+                    <input type="number" id="prop-width" name="width" min="3" max="100" value="60">
+                  </div>
+                  <span class="prop-subtext">Minimum 3%</span>
+                </div>
+                <div class="prop-lock-col">
+                  <button type="button" class="aspect-ratio-lock-btn locked" id="aspect-lock-toggle" title="Toggle aspect ratio lock">
+                    <i class="ri-lock-2-line lock-icon-locked" aria-hidden="true"></i>
+                    <i class="ri-lock-unlock-line lock-icon-unlocked" aria-hidden="true" style="display:none;"></i>
+                  </button>
+                </div>
+                <div class="prop-field-half">
+                  <label for="prop-height">Height</label>
+                  <div class="dim-input-wrap">
+                    <input type="number" id="prop-height" name="height" min="3" max="100" value="60">
+                  </div>
+                  <span class="prop-subtext">Minimum 3%</span>
+                </div>
+              </div>
+
+              <!-- Rotation Buttons (Highlighted in red box in user screenshot!) -->
+              <div class="prop-field">
+                <div class="prop-label-with-val">
+                  <label>Rotation</label>
+                  <span class="rotation-live-val" id="rotation-display-val">0°</span>
+                </div>
+                <div class="rotation-btn-group">
+                  <button type="button" class="rotation-step-btn" id="btn-rotate-ccw" title="Rotate Counter-Clockwise (↶) [Shift+R]">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="rot-svg" aria-hidden="true">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                      <path d="M3 3v5h5"></path>
+                    </svg>
+                  </button>
+                  <button type="button" class="rotation-step-btn" id="btn-rotate-cw" title="Rotate Clockwise (↷) [R]">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="rot-svg" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                      <path d="M21 3v5h-5"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Shape Selection -->
+              <div class="prop-field table-only-prop">
+                <label for="prop-shape">Table Shape</label>
+                <select id="prop-shape" name="shape">
+                  <option value="square">Square</option>
+                  <option value="rect">Rectangle</option>
+                  <option value="round">Round</option>
+                  <option value="long">Long</option>
+                  <option value="banquet">Banquet</option>
+                </select>
+              </div>
+
+              <!-- Status Selection -->
+              <div class="prop-field table-only-prop">
+                <label for="prop-status">Table Status</label>
+                <select id="prop-status" name="status">
+                  <option value="available">Available</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="unavailable">Unavailable</option>
+                </select>
+              </div>
+
+              <!-- Structure Type (for elements only) -->
+              <div class="prop-field element-only-prop" style="display: none;">
+                <label for="prop-kind">Structure Type</label>
+                <select id="prop-kind" name="kind">
+                  <option value="window">Window</option>
+                  <option value="entrance">Entrance</option>
+                  <option value="counter">Counter</option>
+                  <option value="bar">Bar Counter</option>
+                  <option value="wall">Wall</option>
+                  <option value="zone">Dining Zone</option>
+                  <option value="reception">Reception</option>
+                  <option value="kitchen">Kitchen</option>
+                  <option value="restroom">Restroom</option>
+                  <option value="partition">Partition</option>
+                  <option value="exit">Exit</option>
+                </select>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ACTIONS Accordion -->
+        <div class="accordion-item open" id="accordion-actions">
+          <button type="button" class="accordion-header" data-accordion="actions" aria-expanded="true">
+            <span class="accordion-title">ACTIONS</span>
+            <i class="ri-arrow-down-s-line accordion-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="accordion-body">
+            <div class="action-buttons-wrap">
+              <button type="button" class="inspector-action-btn action-duplicate" id="btn-action-duplicate" disabled>
+                <i class="ri-file-copy-line" aria-hidden="true"></i> Duplicate
+              </button>
+              <button type="button" class="inspector-action-btn action-delete" id="btn-action-delete" disabled>
+                <i class="ri-delete-bin-line" aria-hidden="true"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Collapsible Advanced Management Sections -->
+    <details class="advanced-table-list-details">
+      <summary class="box advanced-summary">
+        <span><i class="ri-table-line" aria-hidden="true"></i> Table details (tabular spreadsheet view)</span>
         <span class="table-count">{{ tables|length }} table{{ tables|length|pluralize }}</span>
-      </div>
-      <div class="tw table-editor-wrap">
-        <table class="dt table-editor">
-          <thead>
-            <tr>
-              <th scope="col">Table</th>
-              <th scope="col">Seats</th>
-              <th scope="col">x</th>
-              <th scope="col">y</th>
-              <th scope="col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in tables %}
+      </summary>
+      <div class="box table-list-card">
+        <div class="tw table-editor-wrap">
+          <table class="dt table-editor">
+            <thead>
               <tr>
-                <td>{{ t.name }} <span class="mu">({{ t.get_shape_display }})</span></td>
-                <td><input form="table-form-{{ t.pk }}" name="seats" type="number" min="1" max="30" value="{{ t.seats }}"></td>
-                <td><input form="table-form-{{ t.pk }}" name="x" type="number" min="0" max="100" value="{{ t.x }}"></td>
-                <td><input form="table-form-{{ t.pk }}" name="y" type="number" min="0" max="100" value="{{ t.y }}"></td>
-                <td>
-                  <form id="table-form-{{ t.pk }}" method="post" class="table-row-actions">
-                    {% csrf_token %}
-                    <input type="hidden" name="r" value="{{ cur.slug }}">
-                    <input type="hidden" name="pk" value="{{ t.pk }}">
-                    <button class="dk sm" type="submit" name="action" value="edit_table">Save</button>
-                    <button class="cancel sm" type="submit" name="action" value="del_table">Remove</button>
-                  </form>
-                </td>
+                <th scope="col">Table</th>
+                <th scope="col">Section</th>
+                <th scope="col">Min Seats</th>
+                <th scope="col">Max Seats</th>
+                <th scope="col">x</th>
+                <th scope="col">y</th>
+                <th scope="col">Width</th>
+                <th scope="col">Height</th>
+                <th scope="col">Rotation</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
               </tr>
-            {% empty %}
-              <tr><td colspan="5" class="mu" style="text-align: center;">No tables yet. Add the first table below.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="box add-table-card" id="add-table">
-      <div class="bh">
-        <div>
-          <span class="bh-kicker">Floor plan setup</span>
-          <h3>Add a table</h3>
+            </thead>
+            <tbody>
+              {% for t in tables %}
+                <tr>
+                  <td><input form="table-form-{{ t.pk }}" name="name" type="text" value="{{ t.name }}" style="max-width: 80px;"> <span class="mu">({{ t.get_shape_display }})</span></td>
+                  <td><input form="table-form-{{ t.pk }}" name="section" type="text" value="{{ t.section }}" style="max-width: 100px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="min_seats" type="number" min="1" max="30" value="{{ t.min_seats|default:1 }}" style="max-width: 60px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="seats" type="number" min="1" max="30" value="{{ t.seats }}" style="max-width: 60px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="x" type="number" min="0" max="100" value="{{ t.x }}" style="max-width: 60px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="y" type="number" min="0" max="100" value="{{ t.y }}" style="max-width: 60px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="width_percent" type="number" min="3" max="40" value="{{ t.width_percent|default_if_none:'' }}" style="max-width: 60px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="height_percent" type="number" min="3" max="40" value="{{ t.height_percent|default_if_none:'' }}" style="max-width: 60px;"></td>
+                  <td><input form="table-form-{{ t.pk }}" name="rotation" type="number" min="0" max="359" value="{{ t.rotation }}" style="max-width: 60px;"></td>
+                  <td>
+                    <select form="table-form-{{ t.pk }}" name="status">
+                      <option value="available" {% if t.status == "available" %}selected{% endif %}>Available</option>
+                      <option value="occupied" {% if t.status == "occupied" %}selected{% endif %}>Occupied</option>
+                      <option value="unavailable" {% if t.status == "unavailable" %}selected{% endif %}>Unavailable</option>
+                    </select>
+                  </td>
+                  <td>
+                    <form id="table-form-{{ t.pk }}" method="post" class="table-row-actions">
+                      {% csrf_token %}
+                      <input type="hidden" name="r" value="{{ cur.slug }}">
+                      <input type="hidden" name="pk" value="{{ t.pk }}">
+                      <button class="dk sm" type="submit" name="action" value="edit_table">Save</button>
+                      <button class="cancel sm" type="submit" name="action" value="del_table">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="11" class="mu" style="text-align: center;">No tables yet. Use the editor above to add tables.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
-      <form method="post" class="add-table-form">
-        {% csrf_token %}
-        <input type="hidden" name="r" value="{{ cur.slug }}">
-        <input type="hidden" name="action" value="add_table">
-        {{ form.as_p }}
-        <button class="gold" type="submit"><i class="ri-add-line" aria-hidden="true"></i> Add table</button>
-      </form>
-    </section>
+    </details>
+
+    <details class="advanced-table-list-details">
+      <summary class="box advanced-summary">
+        <span><i class="ri-layout-masonry-line" aria-hidden="true"></i> Room structures and elements</span>
+        <span class="table-count">{{ elements|length }} element{{ elements|length|pluralize }}</span>
+      </summary>
+      <div class="box floor-elements-card">
+        <div class="floor-element-list">
+          {% for element in elements %}
+            <form method="post" class="floor-element-row">
+              {% csrf_token %}
+              <input type="hidden" name="r" value="{{ cur.slug }}">
+              <input type="hidden" name="pk" value="{{ element.pk }}">
+              <span>{{ element.get_kind_display }}: <strong>{{ element.label }}</strong> (x: {{ element.x }}%, y: {{ element.y }}%, w: {{ element.width_percent }}%, h: {{ element.height_percent }}%)</span>
+              <button class="cancel sm" type="submit" name="action" value="del_element">Remove</button>
+            </form>
+          {% empty %}
+            <p class="mu">No custom room elements yet. Click "Add Structure" in the toolbar above.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </details>
   </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'booking/floor-plan.js' %}" defer></script>
 {% endblock %}

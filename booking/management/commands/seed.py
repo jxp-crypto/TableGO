@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from booking.layouts import FIXTURES, GENERIC, GENERIC_FIXTURES, LAYOUTS
@@ -32,7 +34,11 @@ class Command(BaseCommand):
 
     def handle(self, *a, **k):
         for name, (slug, cuisine, desc, loc, hours) in DATA.items():
-            r, _ = Restaurant.objects.get_or_create(slug=slug, defaults=dict(name=name, cuisine=cuisine, description=desc))
+            r, created = Restaurant.objects.get_or_create(slug=slug, defaults=dict(name=name, cuisine=cuisine, description=desc))
+            if created:
+                opening, closing = hours.split("-", 1)
+                r.opening_time = datetime.strptime(opening.strip(), "%I:%M %p").time()
+                r.closing_time = datetime.strptime(closing.strip(), "%I:%M %p").time()
             if slug in ("khloe", "golden-sun"):
                 r.name = name
             r.fixtures = FIXTURES.get(slug, GENERIC_FIXTURES)

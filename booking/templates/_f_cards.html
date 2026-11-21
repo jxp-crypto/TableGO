@@ -3,12 +3,15 @@
 <div class="cards">
   {% for r in restaurants|slice:":3" %}
     <article class="rcard">
-      <div class="ph" role="img" aria-label="{{ r.name }} restaurant" style="background-image:url('{% static 'booking/img/'|add:r.slug|add:'.jpg' %}')"></div>
+      <div class="ph" role="img" aria-label="{{ r.name }} restaurant" style="background-image:url('{% if r.image %}{{ r.image.url }}{% else %}{% static r.fallback_image_path %}{% endif %}')"></div>
       <div class="rb">
         <div class="restaurant-details">
           <h3>{{ r.name }}</h3>
           <p class="mu">{{ r.location|default:"Main Branch" }}</p>
           <p class="mu">{{ r.cuisine }}</p>
+          {% if r.latitude and r.longitude %}
+            <a class="text-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&amp;destination={{ r.latitude }},{{ r.longitude }}">Directions</a>
+          {% endif %}
         </div>
         <a class="rbtn {{ r.slug }}" href="{% url 'restaurant' r.slug %}">Reserve Here <i class="ri-arrow-right-line" aria-hidden="true"></i></a>
       </div>

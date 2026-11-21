@@ -35,7 +35,7 @@
           <br><span class="mu">{{ r.note }}</span>
         {% endif %}
       </td>
-      <td>{{ r.date }} {{ r.time }}</td>
+      <td>{{ r.date }} {{ r.time }}–{{ r.end_time|time:"H:i" }} ({{ r.duration_minutes }} min)</td>
       <td>{{ r.guests }}</td>
       <td>{{ r.table.name|default:"-" }}</td>
       <td>{{ r.set_menu.name|default:"None" }}</td>

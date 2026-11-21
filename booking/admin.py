@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import Reservation, Restaurant, RestaurantManager, Table
+from .models import (
+    FloorPlanElement, Reservation, Restaurant, RestaurantManager, Table,
+)
 
 
 @admin.register(Restaurant)
@@ -21,7 +23,10 @@ class RestaurantAdmin(admin.ModelAdmin):
 
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):
-    list_display = ("id", "restaurant", "customer_name", "customer", "date", "time", "guests", "table", "status")
+    list_display = (
+        "id", "restaurant", "customer_name", "customer_email", "email_verified",
+        "date", "time", "end_time", "guests", "table", "status",
+    )
     list_filter = ("restaurant", "status", "date")
     actions = ["confirm", "decline"]
 
@@ -34,4 +39,4 @@ class ReservationAdmin(admin.ModelAdmin):
         qs.update(status="declined")
 
 
-admin.site.register([Table, RestaurantManager])
+admin.site.register([Table, RestaurantManager, FloorPlanElement])

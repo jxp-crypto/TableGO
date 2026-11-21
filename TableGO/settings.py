@@ -1,101 +1,206 @@
+
 import os
 import dj_database_url
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = os.environ.get("DEBUG_MODE")
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
+# --------------------------------------------------
+# DEVELOPMENT AND SECURITY SETTINGS
+# --------------------------------------------------
+
+DEBUG = os.environ.get("DEBUG_MODE", "False").lower() == "true"
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or (
+    "django-insecure-local-development-only-key"
+    if DEBUG else "django-insecure-local-development-only-key"
+)
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost"
+    ).split(",")
+    if host.strip()
+]
+
+# --------------------------------------------------
+# INSTALLED APPLICATIONS
+# --------------------------------------------------
 
 INSTALLED_APPS = [
-    "django.contrib.admin", 
-    "django.contrib.auth", 
+    "django.contrib.admin",
+    "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sessions", 
-    "django.contrib.messages", 
-    "django.contrib.staticfiles", 
-    
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     "booking",
 ]
 
-WSGI_APPLICATION = 'TableGO.wsgi.application'
+# --------------------------------------------------
+# URL AND SERVER CONFIGURATION
+# --------------------------------------------------
+
+ROOT_URLCONF = "TableGO.urls"
+
+WSGI_APPLICATION = "TableGO.wsgi.application"
 ASGI_APPLICATION = "TableGO.asgi.application"
+
+# --------------------------------------------------
+# MIDDLEWARE
+# --------------------------------------------------
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "TableGO.urls"
+# --------------------------------------------------
+# HTTPS AND COOKIE SETTINGS
+# --------------------------------------------------
 
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = not DEBUG
+
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
+# --------------------------------------------------
+# TEMPLATES
+# --------------------------------------------------
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"], 
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages"
-            ]
+                "django.contrib.messages.context_processors.messages",
+            ],
         },
-    }
+    },
 ]
 
-DATABASES = {
-    "default": dj_database_url.parse(
-        os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=True
-    )
-}
+# --------------------------------------------------
+# DATABASE CONFIGURATION
+# PostgreSQL online / SQLite local
+# --------------------------------------------------
+
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+if DATABASE_URL and DATABASE_URL not in ("b''", "None"):
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+# --------------------------------------------------
+# STATIC FILES
+# --------------------------------------------------
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "false").lower() == "true"
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "TableGO <no-reply@example.com>")
+
+STATICFILES_DIRS = (
+    [BASE_DIR / "static"]
+    if (BASE_DIR / "static").exists()
+    else []
+)
 
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
     },
 }
 
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-SECURE_SSL_REDIRECT = True
+# --------------------------------------------------
+# AUTHENTICATION
+# --------------------------------------------------
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"
 
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATIC_URL = "staticfiles/"
-STATICFILES_DIRS = [BASE_DIR / 'static']
+# --------------------------------------------------
+# PASSWORD VALIDATION
+# --------------------------------------------------
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
 
-LANGUAGE_CODE = 'en-us'
+# --------------------------------------------------
+# INTERNATIONALIZATION
+# --------------------------------------------------
+
+LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Manila"
+
 USE_I18N = False
 USE_TZ = True
+
+# 12-hour time display format (e.g., 2:30 PM)
+TIME_FORMAT = "g:i A"
+# Global datetime format using 12-hour time
+DATETIME_FORMAT = "Y-m-d g:i A"
+# Accept 12-hour time inputs in forms (e.g., 02:30 PM)
+TIME_INPUT_FORMATS = ["%I:%M %p", "%I:%M%p", "%I:%M"]
+
+# --------------------------------------------------
+# DEFAULT PRIMARY KEY
+# --------------------------------------------------
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

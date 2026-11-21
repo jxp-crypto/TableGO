@@ -12,6 +12,14 @@ GENERIC_FIXTURES = [
 ]
 
 LAYOUTS = {
+    "symmetric-demo": [
+        # Left side tables (mirror of right side)
+        ("TL1", 4, "rect", 20, 20), ("TL2", 4, "rect", 20, 40), ("TL3", 4, "rect", 20, 60), ("TL4", 4, "rect", 20, 80),
+        # Right side tables
+        ("TR1", 4, "rect", 80, 20), ("TR2", 4, "rect", 80, 40), ("TR3", 4, "rect", 80, 60), ("TR4", 4, "rect", 80, 80),
+        # Center lounge tables
+        ("C1", 6, "long", 50, 30), ("C2", 6, "long", 50, 70),
+    ],
     "lub-dub-cafe": [
         ("T1", 4, "rect", 12, 33), ("T2", 4, "rect", 12, 76), ("T3", 4, "rect", 27, 56),   # brick-wall corner
         ("T4", 6, "long", 43, 75), ("T5", 4, "rect", 43, 40),                              # wooden tables with benches

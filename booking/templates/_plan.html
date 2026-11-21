@@ -1,17 +1,91 @@
-<div class="plan">
+<div class="plan{% if editable %} plan-editable{% endif %}"
+     {% if editable %}data-editable="true" data-restaurant="{{ rest.slug }}"
+       data-outline-url="{% url 'd_floor_outline' %}"
+       data-create-table-url="{% url 'd_table_create' %}"
+       data-create-element-url="{% url 'd_element_create' %}"
+       data-orientation-url="{% url 'd_floor_orientation' %}"
+       data-batch-save-url="{% url 'd_floor_batch_save' %}"{% endif %}
+     style="aspect-ratio:{{ rest.floor_width }} / {{ rest.floor_height }};{% if rest.floor_outline %}clip-path:polygon({% for point in rest.floor_outline %}{{ point.x }}% {{ point.y }}%{% if not forloop.last %}, {% endif %}{% endfor %});{% endif %}">
+  {% if editable %}
+    <svg class="floor-boundary-preview" viewBox="0 0 100 100" aria-hidden="true">
+      <polygon points="{% for point in rest.floor_outline %}{{ point.x }},{{ point.y }} {% endfor %}"></polygon>
+    </svg>
+  {% endif %}
   {% for f in rest.fixtures %}
     <span class="fx{% if f.v %} v{% endif %}{% if f.b %} b{% endif %}"
           style="left:{{ f.x }}%;top:{{ f.y }}%;width:{{ f.w }}%;height:{{ f.h }}%">{{ f.label }}
     </span>
   {% endfor %}
+  {% for element in rest.floor_elements.all %}
+    <div class="floor-element element-{{ element.kind }}{% if editable %} movable{% endif %}"
+         style="left:{{ element.x }}%;top:{{ element.y }}%;width:{{ element.width_percent }}%;height:{{ element.height_percent }}%;--rotation:{{ element.rotation }}deg"
+         title="{{ element.get_kind_display }}: {{ element.label }}"
+         {% if editable %}data-position-url="{% url 'd_element_position' element.pk %}"
+           data-delete-url="{% url 'd_element_delete' element.pk %}"
+           data-id="{{ element.pk }}"
+           data-kind="{{ element.kind }}"
+           data-label="{{ element.label }}"
+           data-x="{{ element.x }}" data-y="{{ element.y }}"
+           data-width="{{ element.width_percent }}" data-height="{{ element.height_percent }}"
+           data-rotation="{{ element.rotation }}" tabindex="0" role="button"
+           aria-label="{{ element.get_kind_display }} {{ element.label }}; use arrow keys to move and R to rotate"{% endif %}>
+      <span class="element-label">{{ element.label }}</span>
+      {% if editable %}
+        <span class="resize-handle" aria-hidden="true"></span>
+        <span class="selection-handles" aria-hidden="true">
+          <span class="sel-handle sel-nw"></span>
+          <span class="sel-handle sel-ne"></span>
+          <span class="sel-handle sel-se"></span>
+          <span class="sel-handle sel-sw"></span>
+        </span>
+      {% endif %}
+    </div>
+  {% endfor %}
   {% for c in cells %}
-    <label class="tbl {{ c.t.shape }} {{ c.state }}" 
-           style="left:{{ c.t.x }}%;top:{{ c.t.y }}%"
-           title="{{ c.t.name }} · {{ c.t.seats }} seats">
-    {% if selectable and c.state == "free" %}
-      <input type="radio" name="table" value="{{ c.t.pk }}" required>
-    {% endif %}<b>{{ c.t.name }}</b>
-    <small>{{ c.t.seats }} seats</small>
-    </label>
+    {% if editable %}
+      <button type="button" class="tbl {{ c.t.shape }} {{ c.state }} movable"
+              style="left:{{ c.t.x }}%;top:{{ c.t.y }}%;{% if c.t.width_percent %}width:{{ c.t.width_percent }}%;{% endif %}{% if c.t.height_percent %}height:{{ c.t.height_percent }}%;{% endif %}--rotation:{{ c.t.rotation }}deg"
+              title="{{ c.t.name }} · {{ c.t.seats }} seats ({{ c.t.section|default:'Dining Room' }})"
+              data-position-url="{% url 'd_table_position' c.t.pk %}"
+              data-duplicate-url="{% url 'd_table_duplicate' c.t.pk %}"
+              data-delete-url="{% url 'd_table_delete' c.t.pk %}"
+              data-id="{{ c.t.pk }}"
+              data-name="{{ c.t.name }}"
+              data-section="{{ c.t.section|default:'Dining Room' }}"
+              data-seats="{{ c.t.seats }}"
+              data-min-seats="{{ c.t.min_seats|default:1 }}"
+              data-shape="{{ c.t.shape }}"
+              data-status="{{ c.t.status }}"
+              data-x="{{ c.t.x }}" data-y="{{ c.t.y }}"
+              data-width="{{ c.t.width_percent|default:'' }}" data-height="{{ c.t.height_percent|default:'' }}"
+              data-rotation="{{ c.t.rotation }}" tabindex="0"
+              aria-label="{{ c.t.name }}, {{ c.t.seats }} seats, {{ c.t.section|default:'Dining Room' }}; use arrow keys to move and R to rotate">
+        <span class="tbl-content">
+          <b class="tbl-name">{{ c.t.name }}</b>
+          <small class="tbl-seats">{{ c.t.seats }} Seat{{ c.t.seats|pluralize }}</small>
+          {% if c.t.section %}<span class="tbl-section">{{ c.t.section }}</span>{% endif %}
+        </span>
+        <span class="resize-handle" aria-hidden="true"></span>
+        <span class="selection-handles" aria-hidden="true">
+          <span class="sel-handle sel-nw"></span>
+          <span class="sel-handle sel-ne"></span>
+          <span class="sel-handle sel-se"></span>
+          <span class="sel-handle sel-sw"></span>
+        </span>
+      </button>
+    {% else %}
+      <label class="tbl {{ c.t.shape }} {{ c.state }}"
+             style="left:{{ c.t.x }}%;top:{{ c.t.y }}%;{% if c.t.width_percent %}width:{{ c.t.width_percent }}%;{% endif %}{% if c.t.height_percent %}height:{{ c.t.height_percent }}%;{% endif %}--rotation:{{ c.t.rotation }}deg"
+             title="{{ c.t.name }} · {{ c.t.seats }} seats{% if c.t.section %} · {{ c.t.section }}{% endif %}">
+      {% if selectable and c.state == "free" %}
+        <input type="radio" name="table" value="{{ c.t.pk }}" required>
+      {% endif %}
+      <span class="tbl-content">
+        <b class="tbl-name">{{ c.t.name }}</b>
+        <small class="tbl-seats">{{ c.t.seats }} seats</small>
+        {% if c.t.section %}<span class="tbl-section">{{ c.t.section }}</span>{% endif %}
+      </span>
+      </label>
+    {% endif %}
   {% endfor %}
 </div>
